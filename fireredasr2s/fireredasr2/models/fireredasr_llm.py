@@ -41,16 +41,19 @@ class FireRedAsrLlm(nn.Module):
                 param.requires_grad = False
             encoder.eval()
 
+        # Training use torch.bfloat16
         if args.use_flash_attn:
             attn_implementation = "flash_attention_2"
             if args.use_fp16:
-                torch_dtype = torch.float16
+                #torch_dtype = torch.float16
+                torch_dtype = torch.bfloat16
             else:
                 torch_dtype = torch.float32
         else:
             attn_implementation = "eager"
             if args.use_fp16:
-                torch_dtype = torch.float16
+                #torch_dtype = torch.float16
+                torch_dtype = torch.bfloat16
             else:
                 torch_dtype = torch.float32
 
@@ -136,11 +139,11 @@ class FireRedAsrLlm(nn.Module):
 
         generated_ids = self.llm.generate(
             inputs_embeds=inputs_embeds,
+            attention_mask=attention_mask,
             max_new_tokens=max_new_tokens,
             num_beams=beam_size,
             do_sample=False,
             min_length=decode_min_len,
-            top_p=1.0,
             repetition_penalty=repetition_penalty,
             length_penalty=llm_length_penalty,
             temperature=temperature,
@@ -246,29 +249,49 @@ class FireRedAsrLlm(nn.Module):
         speech_to_overwrite &= speech_to_overwrite.cumsum(-1) - 1 >= nb_speech_pad[
             :, None
         ].to(target_device)
+        if speech_lens is not None:
+            if torch.any(speech_lens > speech_len):
+                raise ValueError(
+                    f"speech_lens contains values ({speech_lens.max()}) larger than "
+                    f"speech_len ({speech_len})"
+                )
 
-        if speech_to_overwrite.sum() != speech_features.shape[:-1].numel():
-            raise ValueError(
-                f"The input provided to the model are wrong. The number of speech tokens is {torch.sum(special_speech_token_mask)} while"
-                f" the number of speech given to the model is {num_speechs}. This prevents correct indexing and breaks batch generation."
+            speech_cumsum = speech_to_overwrite.long().cumsum(-1)
+            speech_position_counter = torch.where(speech_to_overwrite, speech_cumsum - 1, 0)
+            valid_speech_positions = speech_position_counter < speech_lens[:, None].to(target_device)
+
+            speech_to_overwrite &= valid_speech_positions
+            if speech_to_overwrite.sum().item() != int(speech_lens.sum().item()):
+                raise ValueError(
+                    f"speech_lens and speech token distribution mismatch: "
+                    f"expected total speech frames {speech_lens.sum().item()}, "
+                    f"but got {speech_to_overwrite.sum().item()} positions."
+                )
+            batch_idx, seq_idx = torch.where(speech_to_overwrite)
+            speech_feature_idx = speech_position_counter[speech_to_overwrite]
+            final_embedding[batch_idx, seq_idx] = speech_features[batch_idx, speech_feature_idx].to(target_device)
+        else:
+            if speech_to_overwrite.sum() != speech_features.shape[:-1].numel():
+                raise ValueError(
+                    f"The input provided to the model are wrong. The number of speech tokens is {speech_to_overwrite.sum()} while"
+                    f" the number of speech given to the model is {num_speechs}. This prevents correct indexing and breaks batch generation."
+                )
+            final_embedding[speech_to_overwrite] = (
+                speech_features.contiguous().reshape(-1, embed_dim)[:speech_to_overwrite.sum()].to(target_device)
             )
 
-        final_embedding[speech_to_overwrite] = (
-            speech_features.contiguous().reshape(-1, embed_dim).to(target_device)
-        )
-        if speech_lens is not None:
-            speech_to_overwrite &= speech_pad_position
-        final_attention_mask |= speech_to_overwrite
+        final_attention_mask[speech_to_overwrite] = 1
 
         # 6. Mask out the embedding at padding positions, as we later use the past_key_value value to determine the non-attended tokens.
-        batch_indices, pad_indices = torch.where(
+        batch_indices_pad, pad_indices = torch.where(
             input_ids == self.llm.config.pad_token_id
         )
-        indices_to_mask = new_token_positions[batch_indices, pad_indices]
-
-        final_embedding[batch_indices, indices_to_mask] = 0
+        if len(batch_indices_pad) > 0:
+            indices_to_mask = new_token_positions[batch_indices_pad, pad_indices]
+            final_embedding[batch_indices_pad, indices_to_mask] = 0
+            final_attention_mask[batch_indices_pad, indices_to_mask] = 0
 
         if labels is None:
             final_labels = None
 
-        return final_embedding, final_attention_mask, final_labels #, position_ids
+        return final_embedding, final_attention_mask, final_labels
