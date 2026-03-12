@@ -7,9 +7,8 @@ A SOTA Industrial-Grade All-in-One ASR System
 
 </div>
 
-[[Paper]](https://arxiv.org/pdf/2501.14350)
+[[Paper]](https://arxiv.org/pdf/2603.10420)
 [[Model]](https://huggingface.co/FireRedTeam)
-[[Blog]](https://fireredteam.github.io/demos/firered_asr/)
 [[Demo]](https://huggingface.co/spaces/FireRedTeam/FireRedASR)
 
 
@@ -23,6 +22,7 @@ FireRedASR2S is a state-of-the-art (SOTA), industrial-grade, all-in-one ASR syst
 
 
 ## 🔥 News
+- [2026.03.12] 🔥 We release FireRedASR2S technical report. See [arXiv](https://arxiv.org/abs/2603.10420).
 - [2026.03.05] 🚀 [vLLM](https://github.com/vllm-project/vllm/pull/35727) supports FireRedASR2-LLM. See [vLLM Usage](https://github.com/FireRedTeam/FireRedASR2S?tab=readme-ov-file#vllm-usage) part.
 - [2026.02.25] 🔥 We release **FireRedASR2-LLM model weights**. [🤗](https://huggingface.co/FireRedTeam/FireRedASR2-LLM) [🤖](https://www.modelscope.cn/models/xukaituo/FireRedASR2-LLM/)
 - [2026.02.13] 🚀 Support TensorRT-LLM inference acceleration for FireRedASR2-AED (contributed by NVIDIA). Benchmark on AISHELL-1 test set shows **12.7x speedup** over PyTorch baseline (single H20).
@@ -491,3 +491,14 @@ Thanks to the following open-source works:
 - [Qwen](https://huggingface.co/Qwen)
 - [WenetSpeech-Yue](https://github.com/ASLP-lab/WenetSpeech-Yue)
 - [WenetSpeech-Chuan](https://github.com/ASLP-lab/WenetSpeech-Chuan)
+
+
+## Citation
+```bibtex
+@article{xu2026fireredasr2s,
+  title={FireRedASR2S: A State-of-the-Art Industrial-Grade All-in-One Automatic Speech Recognition System},
+  author={Xu, Kaituo and Jia, Yan and Huang, Kai and Chen, Junjie and Li, Wenpeng and Liu, Kun and Xie, Feng-Long and Tang, Xu and Hu, Yao},
+  journal={arXiv preprint arXiv:2603.10420},
+  year={2026}
+}
+```
