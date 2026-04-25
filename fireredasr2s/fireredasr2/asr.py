@@ -81,9 +81,12 @@ class FireRedAsr2:
         self.config = config
         logger.info(self.config)
         if self.config.use_gpu:
+            # Important for low-RAM environments:
+            # calling `.half()` on CPU first can temporarily double host memory usage.
+            # Move to GPU first, then cast on GPU.
+            self.model.cuda()
             if self.config.use_half:
                 self.model.half()
-            self.model.cuda()
             if self.elm:
                 self.elm.cuda()
         else:
@@ -219,14 +222,14 @@ class FireRedAsr2:
 
 
 def load_fireredasr_aed_model(model_path):
-    package = torch.load(model_path, map_location=lambda storage, loc: storage, weights_only=False)
+    package = torch.load(model_path, map_location="cpu", weights_only=False, mmap=True)
     model = FireRedAsrAed.from_args(package["args"])
     model.load_state_dict(package["model_state_dict"], strict=False)
     return model
 
 
 def load_firered_llm_model_and_tokenizer(model_path, encoder_path, llm_dir):
-    package = torch.load(model_path, map_location=lambda storage, loc: storage, weights_only=False)
+    package = torch.load(model_path, map_location="cpu", weights_only=False, mmap=True)
     package["args"].encoder_path = encoder_path
     package["args"].llm_dir = llm_dir
     model = FireRedAsrLlm.from_args(package["args"])
@@ -235,7 +238,7 @@ def load_firered_llm_model_and_tokenizer(model_path, encoder_path, llm_dir):
     return model, tokenizer
 
 def load_lstm_lm(model_path):
-    package = torch.load(model_path, map_location=lambda storage, loc: storage, weights_only=False)
+    package = torch.load(model_path, map_location="cpu", weights_only=False, mmap=True)
     model = LstmLm.from_args(package["args"])
     model.load_state_dict(package["model_state_dict"], strict=False)
     return model

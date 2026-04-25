@@ -20,7 +20,7 @@ class FireRedAsrLlm(nn.Module):
     @classmethod
     def load_encoder(cls, model_path):
         assert os.path.exists(model_path)
-        package = torch.load(model_path, map_location=lambda storage, loc: storage, weights_only=False)
+        package = torch.load(model_path, map_location="cpu", weights_only=False, mmap=True)
         model = FireRedAsrAed.from_args(package["args"])
         if "model_state_dict" in package:
             model.load_state_dict(package["model_state_dict"], strict=False)

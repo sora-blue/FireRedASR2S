@@ -47,9 +47,10 @@ class FireRedLid:
         self.config.aed_length_penalty = 0.6
         self.config.eos_penalty = 1.0
         if self.config.use_gpu:
+            # Avoid doing `.half()` on CPU first (can spike host RAM).
+            self.model.cuda()
             if self.config.use_half:
                 self.model.half()
-            self.model.cuda()
         else:
             self.model.cpu()
 
@@ -103,7 +104,7 @@ class FireRedLid:
 
 
 def load_fireredlid_model(model_path):
-    package = torch.load(model_path, map_location=lambda storage, loc: storage, weights_only=False)
+    package = torch.load(model_path, map_location="cpu", weights_only=False, mmap=True)
     #print(package["args"])
     model = FireRedLidAed.from_args(package["args"])
     model.load_state_dict(package["model_state_dict"], strict=False)

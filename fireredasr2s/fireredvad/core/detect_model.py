@@ -11,8 +11,12 @@ class DetectModel(nn.Module):
     @classmethod
     def from_pretrained(cls, model_dir):
         model_path = os.path.join(model_dir, "model.pth.tar")
-        package = torch.load(model_path,
-            map_location=lambda storage, loc: storage, weights_only=False)
+        package = torch.load(
+            model_path,
+            map_location="cpu",
+            weights_only=False,
+            mmap=True,
+        )
         model = cls(package["args"])
         model.load_state_dict(package["model_state_dict"], strict=True)
         model.eval()

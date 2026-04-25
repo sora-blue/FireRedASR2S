@@ -196,7 +196,7 @@ class FireRedPunc:
 
 def load_punc_bert_model(model_dir):
     model_path = os.path.join(model_dir, "model.pth.tar")
-    package = torch.load(model_path, map_location=lambda storage, loc: storage, weights_only=False)
+    package = torch.load(model_path, map_location="cpu", weights_only=False, mmap=True)
     package["args"].bert = None
     package["args"].pretrained_bert = os.path.join(model_dir, "chinese-lert-base")
     model = FireRedPuncBert.from_args(package["args"])
